@@ -1,0 +1,21 @@
+import { Router } from "express";
+import { authRoutes } from "./authRoutes.js";
+import { bookingRoutes } from "./bookingRoutes.js";
+import { chatRoutes } from "./chatRoutes.js";
+import { busRoutes } from "./busRoutes.js";
+import { flightRoutes } from "./flightRoutes.js";
+import { hotelRoutes } from "./hotelRoutes.js";
+import { recommendationRoutes } from "./recommendationRoutes.js";
+import { trainRoutes } from "./trainRoutes.js";
+import { walletRoutes } from "./walletRoutes.js";
+export const apiRouter = Router();
+
+apiRouter.use("/auth", authRoutes);
+apiRouter.use("/hotels", hotelRoutes);
+apiRouter.use("/flights", flightRoutes);
+apiRouter.use("/buses", busRoutes);
+apiRouter.use("/trains", trainRoutes);
+apiRouter.use("/bookings", bookingRoutes);
+apiRouter.use("/chat", chatRoutes);
+apiRouter.use("/recommendations", recommendationRoutes);
+apiRouter.use("/wallet", walletRoutes);
