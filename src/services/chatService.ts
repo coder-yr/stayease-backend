@@ -2,7 +2,6 @@ import { prisma } from "../config/prisma.js";
 import { aiDefaultModel, aiProvider, xaiClient } from "../config/openai.js";
 import { env } from "../config/env.js";
 import { hotelService } from "./hotelService.js";
-import { flightService } from "./flightService.js";
 
 type ChatInput = {
   userId?: string;
@@ -21,8 +20,57 @@ const detectIntent = (message: string) => {
 
   if (text.includes("hotel") || text.includes("stay")) return "hotel";
   if (text.includes("flight") || text.includes("fly")) return "flight";
+  if (text.includes("bus") || text.includes("coach")) return "bus";
+  if (text.includes("train") || text.includes("rail")) return "train";
   if (text.includes("itinerary") || text.includes("plan")) return "itinerary";
   return "general";
+};
+
+const extractLocation = (message: string) => {
+  const locationMatch = message.match(/in\s+([a-zA-Z\s]+)/i);
+  return locationMatch?.[1]?.trim();
+};
+
+const extractRoute = (message: string) => {
+  const routeMatch = message.match(/from\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+)/i);
+  if (!routeMatch) return null;
+  return {
+    source: routeMatch[1].trim(),
+    destination: routeMatch[2].trim()
+  };
+};
+
+const searchFlightsFromDb = async (source?: string, destination?: string) => {
+  return prisma.flight.findMany({
+    where: {
+      ...(source ? { source: { contains: source } } : {}),
+      ...(destination ? { destination: { contains: destination } } : {})
+    },
+    orderBy: [{ price: "asc" }, { departureTime: "asc" }],
+    take: 5
+  });
+};
+
+const searchBusesFromDb = async (source?: string, destination?: string) => {
+  return prisma.bus.findMany({
+    where: {
+      ...(source ? { source: { contains: source } } : {}),
+      ...(destination ? { destination: { contains: destination } } : {})
+    },
+    orderBy: [{ price: "asc" }, { departureTime: "asc" }],
+    take: 5
+  });
+};
+
+const searchTrainsFromDb = async (source?: string, destination?: string) => {
+  return prisma.train.findMany({
+    where: {
+      ...(source ? { source: { contains: source } } : {}),
+      ...(destination ? { destination: { contains: destination } } : {})
+    },
+    orderBy: [{ price: "asc" }, { departureTime: "asc" }],
+    take: 5
+  });
 };
 
 const getProviderErrorCode = (error: any): number | undefined => {
@@ -84,22 +132,25 @@ export const chatService = {
   async respond(input: ChatInput) {
     const intent = detectIntent(input.message);
     const context: Record<string, unknown> = { intent };
+    const location = extractLocation(input.message);
+    const route = extractRoute(input.message);
 
-    if (intent === "hotel") {
-      const locationMatch = input.message.match(/in\s+([a-zA-Z\s]+)/i);
-      const location = locationMatch?.[1]?.trim();
+    if (intent === "hotel" || intent === "itinerary" || intent === "general") {
       context.hotels = await hotelService.search({ location, limit: 5, page: 1 });
     }
 
-    if (intent === "flight") {
-      const routeMatch = input.message.match(/from\s+([A-Z]{3})\s+to\s+([A-Z]{3})/i);
-      if (routeMatch) {
-        context.flights = await flightService.search({
-          source: routeMatch[1].toUpperCase(),
-          destination: routeMatch[2].toUpperCase(),
-          date: new Date().toISOString().slice(0, 10)
-        });
-      }
+    if (intent === "flight" || intent === "itinerary" || intent === "general") {
+      context.flights = {
+        items: await searchFlightsFromDb(route?.source?.toUpperCase(), route?.destination?.toUpperCase())
+      };
+    }
+
+    if (intent === "bus" || intent === "itinerary" || intent === "general") {
+      context.buses = await searchBusesFromDb(route?.source, route?.destination);
+    }
+
+    if (intent === "train" || intent === "itinerary" || intent === "general") {
+      context.trains = await searchTrainsFromDb(route?.source, route?.destination);
     }
 
     const basePrompt = `You are StayEase AI, a warm and helpful travel assistant for an Indian travel platform called StayEase. 
@@ -110,7 +161,7 @@ Format your answers in a clean, readable way:
 - Use emojis sparingly to make responses friendly
 - Include INR (₹) for all prices
 - Be concise but helpful
-If hotel or flight context data is provided, weave the real details into your natural-language response.`;
+If hotel, flight, bus, or train context data is provided, weave the real details into your natural-language response.`;
 
     let responseText = "";
 
