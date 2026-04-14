@@ -135,21 +135,21 @@ export const chatService = {
     const location = extractLocation(input.message);
     const route = extractRoute(input.message);
 
-    if (intent === "hotel" || intent === "itinerary" || intent === "general") {
+    if (intent === "hotel" || intent === "itinerary") {
       context.hotels = await hotelService.search({ location, limit: 5, page: 1 });
     }
 
-    if (intent === "flight" || intent === "itinerary" || intent === "general") {
+    if (intent === "flight" || intent === "itinerary") {
       context.flights = {
         items: await searchFlightsFromDb(route?.source?.toUpperCase(), route?.destination?.toUpperCase())
       };
     }
 
-    if (intent === "bus" || intent === "itinerary" || intent === "general") {
+    if (intent === "bus" || intent === "itinerary") {
       context.buses = await searchBusesFromDb(route?.source, route?.destination);
     }
 
-    if (intent === "train" || intent === "itinerary" || intent === "general") {
+    if (intent === "train" || intent === "itinerary") {
       context.trains = await searchTrainsFromDb(route?.source, route?.destination);
     }
 
