@@ -165,7 +165,7 @@ const loadRecentChatHistory = async (userId?: string, sessionId?: string, limit 
     where: {
       userId,
       context: {
-        path: ["sessionId"],
+        path: "sessionId",
         equals: sessionId
       }
     },

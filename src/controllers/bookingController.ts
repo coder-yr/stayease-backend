@@ -8,24 +8,66 @@ type BookingStatusValue = "pending" | "confirmed" | "cancelled";
 export const bookingController = {
   create: async (req: Request, res: Response) => {
     const userId = req.user!.id;
-    const booking = await prisma.booking.create({
-      data: {
-        userId,
-        type: req.body.type,
-        travelDate: new Date(req.body.travelDate),
-        hotelId: req.body.hotelId ?? null,
-        packageId: req.body.packageId ?? null,
-        flightData: req.body.flightData,
-        packageData: req.body.packageData,
-        busData: req.body.busData,
-        trainData: req.body.trainData,
-        totalAmount: Number(req.body.totalAmount),
-        currency: req.body.currency ?? "USD",
-        metadata: req.body.metadata
-      } as any
+    const totalAmount = Number(req.body.totalAmount);
+
+    // Fetch user wallet balance
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
     });
 
-    res.status(201).json(ok(booking, "Booking created"));
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Check if wallet balance is sufficient (convert Decimal to number)
+    const walletBalance = Number(user.walletBalance);
+    if (walletBalance < totalAmount) {
+      throw new AppError(
+        `Insufficient wallet balance. Required: ${totalAmount}, Available: ${walletBalance}`,
+        400
+      );
+    }
+
+    // Create booking, deduct wallet, and create transaction in a single transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.create({
+        data: {
+          userId,
+          type: req.body.type,
+          travelDate: new Date(req.body.travelDate),
+          hotelId: req.body.hotelId ?? null,
+          packageId: req.body.packageId ?? null,
+          flightData: req.body.flightData,
+          packageData: req.body.packageData,
+          busData: req.body.busData,
+          trainData: req.body.trainData,
+          totalAmount: totalAmount,
+          currency: req.body.currency ?? "USD",
+          metadata: req.body.metadata
+        } as any
+      });
+
+      // Deduct from wallet
+      await tx.user.update({
+        where: { id: userId },
+        data: { walletBalance: { decrement: totalAmount } }
+      });
+
+      // Create wallet transaction record
+      await tx.walletTransaction.create({
+        data: {
+          userId,
+          title: "Booking",
+          amount: totalAmount,
+          type: "debit",
+          method: "Wallet"
+        }
+      });
+
+      return booking;
+    });
+
+    res.status(201).json(ok(result, "Booking created and wallet deducted"));
   },
 
   listMine: async (req: Request, res: Response) => {
