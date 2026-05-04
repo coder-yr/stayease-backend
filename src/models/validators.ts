@@ -40,13 +40,42 @@ export const flightSearchSchema = z.object({
 
 export const bookingCreateSchema = z.object({
   body: z.object({
-    type: z.enum(["hotel", "flight"]),
-    travelDate: z.string().datetime(),
+    type: z.enum(["hotel", "flight", "train", "bus", "package"]),
+    travelDate: z.union([
+      z.string().datetime(),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    ]),
     hotelId: z.string().min(1).optional(),
+    packageId: z.string().min(1).optional(),
     flightData: z.record(z.unknown()).optional(),
+    packageData: z.record(z.unknown()).optional(),
+    busData: z.record(z.unknown()).optional(),
+    trainData: z.record(z.unknown()).optional(),
     totalAmount: z.coerce.number().positive(),
     currency: z.string().length(3).optional(),
     metadata: z.record(z.unknown()).optional()
+  })
+});
+
+export const tourPackageCreateSchema = z.object({
+  body: z.object({
+    name: z.string().min(2).max(120),
+    destination: z.string().min(2).max(120),
+    description: z.string().max(2000).optional(),
+    price: z.coerce.number().positive(),
+    inclusions: z.unknown().optional(),
+    images: z.unknown().optional()
+  })
+});
+
+export const tourPackageUpdateSchema = z.object({
+  body: z.object({
+    name: z.string().min(2).max(120).optional(),
+    destination: z.string().min(2).max(120).optional(),
+    description: z.string().max(2000).optional(),
+    price: z.coerce.number().positive().optional(),
+    inclusions: z.unknown().optional(),
+    images: z.unknown().optional()
   })
 });
 
@@ -61,7 +90,9 @@ export const bookingStatusSchema = z.object({
 
 export const chatSchema = z.object({
   body: z.object({
-    message: z.string().min(1).max(3000)
+    message: z.string().min(1).max(3000),
+    mode: z.enum(["assistant", "trip_planner"]).optional(),
+    sessionId: z.string().min(1).max(100).optional()
   })
 });
 

@@ -6,7 +6,8 @@ export const chatController = {
   create: async (req: Request, res: Response) => {
     const data = await chatService.respond({
       userId: req.user?.id,
-      message: req.body.message
+      message: req.body.message,
+      mode: req.body.mode
     });
 
     res.status(200).json(ok(data, "Chat response generated"));

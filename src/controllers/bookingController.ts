@@ -13,14 +13,16 @@ export const bookingController = {
         userId,
         type: req.body.type,
         travelDate: new Date(req.body.travelDate),
-        hotelId: req.body.hotelId,
+        hotelId: req.body.hotelId ?? null,
+        packageId: req.body.packageId ?? null,
         flightData: req.body.flightData,
+        packageData: req.body.packageData,
         busData: req.body.busData,
         trainData: req.body.trainData,
         totalAmount: Number(req.body.totalAmount),
         currency: req.body.currency ?? "USD",
         metadata: req.body.metadata
-      }
+      } as any
     });
 
     res.status(201).json(ok(booking, "Booking created"));

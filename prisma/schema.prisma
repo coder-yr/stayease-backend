@@ -89,6 +89,7 @@ model Booking {
   bookingDate DateTime      @default(now()) @map("booking_date")
   travelDate  DateTime      @map("travel_date")
   hotelId     String?       @map("hotel_id")
+  packageId   String?       @map("package_id")
   flightData  Json?         @map("flight_data")
   totalAmount Decimal       @map("total_amount") @db.Decimal(10, 2)
   currency    String        @default("USD")
@@ -97,13 +98,33 @@ model Booking {
   updatedAt   DateTime      @updatedAt @map("updated_at")
   busData     Json?         @map("bus_data")
   trainData   Json?         @map("train_data")
+  packageData Json?         @map("package_data")
   hotel       Hotel?        @relation(fields: [hotelId], references: [id])
+  tourPackage TourPackage?  @relation(fields: [packageId], references: [id])
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
   @@index([type, travelDate])
   @@index([hotelId])
+  @@index([packageId])
   @@map("bookings")
+}
+
+model TourPackage {
+  id          String    @id @default(cuid())
+  name        String
+  destination String
+  description String?
+  price       Decimal   @db.Decimal(10, 2)
+  inclusions  Json?
+  images      Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  bookings    Booking[]
+
+  @@index([destination])
+  @@index([price])
+  @@map("tour_packages")
 }
 
 model FlightSearch {
@@ -209,4 +230,5 @@ enum BookingType {
   flight
   train
   bus
+  package
 }
