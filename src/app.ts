@@ -41,6 +41,15 @@ export const buildApp = async () => {
           callback(null, true);
           return;
         }
+        // Allow Vercel preview/deploy URLs (convenience for demo deployments)
+        try {
+          if (origin && origin.endsWith('.vercel.app')) {
+            callback(null, true);
+            return;
+          }
+        } catch (e) {
+          // ignore
+        }
         if (allowedOrigins.includes(origin)) {
           callback(null, true);
           return;
