@@ -16,6 +16,7 @@ export type HotelSearchParams = {
   amenities?: string[];
   page?: number;
   limit?: number;
+  category?: string;
 };
 
 export type OwnerHotelInput = {
@@ -35,6 +36,31 @@ export type OwnerHotelInput = {
   rules?: string;
   mealsIncluded?: boolean;
   taxRate?: number;
+};
+
+export type MultiStepHotelInput = {
+  basicInfo: {
+    name: string;
+    city: string;
+    state: string;
+    description: string;
+    email: string;
+    phone: string;
+    address: string;
+    coverImage: string;
+  };
+  facilities: string[];
+  rooms: Array<{
+    type: string;
+    price: number;
+    capacity: number;
+    totalRooms: number;
+  }>;
+  documents: {
+    idProof: string;
+    license: string;
+    videoUrl: string;
+  };
 };
 
 const fetchHotelsFromRapidApi = async (params: HotelSearchParams) => {
@@ -77,6 +103,55 @@ const toJsonInput = (value: unknown): Prisma.InputJsonValue | undefined => {
   return value as Prisma.InputJsonValue;
 };
 
+const isMultiStepHotelInput = (value: unknown): value is MultiStepHotelInput => {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as Record<string, unknown>;
+  return Boolean(payload.basicInfo && payload.rooms && payload.documents);
+};
+
+const normalizeHotelInput = (data: OwnerHotelInput | MultiStepHotelInput): OwnerHotelInput => {
+  if (!isMultiStepHotelInput(data)) {
+    return data as OwnerHotelInput;
+  }
+
+  const location = `${data.basicInfo.city}, ${data.basicInfo.state}`;
+
+  const lowestRoomPrice = data.rooms.reduce((min, room) => Math.min(min, Number(room.price)), Number(data.rooms[0]?.price ?? 0));
+
+  return {
+    name: data.basicInfo.name,
+    location,
+    price: lowestRoomPrice,
+    description: data.basicInfo.description,
+    amenities: data.facilities,
+    fullAmenities: {
+      facilities: data.facilities,
+      contact: {
+        email: data.basicInfo.email,
+        phone: data.basicInfo.phone
+      },
+      address: data.basicInfo.address
+    },
+    images: [data.basicInfo.coverImage],
+    tiers: data.rooms.map((room) => ({
+      name: room.type,
+      price: Number(room.price),
+      capacity: Number(room.capacity),
+      totalRooms: Number(room.totalRooms)
+    })),
+    nearby: {
+      documents: {
+        idProof: data.documents.idProof,
+        license: data.documents.license,
+        videoUrl: data.documents.videoUrl
+      },
+      submissionType: "multi-step"
+    },
+    category: "Hotel",
+    status: "pending" as never
+  } as OwnerHotelInput;
+};
+
 export const hotelService = {
   async search(params: HotelSearchParams) {
     const page = params.page ?? 1;
@@ -85,6 +160,7 @@ export const hotelService = {
 
     const where = {
       status: "approved" as const,
+      ...(params.category ? { category: params.category } : {}),
       ...(params.location
         ? {
             location: {
@@ -147,28 +223,32 @@ export const hotelService = {
     return prisma.hotel.findUnique({ where: { id } });
   },
 
-  async createByOwner(ownerId: string, data: OwnerHotelInput) {
-    return prisma.hotel.create({
-      data: {
-        name: data.name,
-        location: data.location,
-        price: Number(data.price),
-        rating: Number(data.rating ?? 0),
-        reviewCount: Number(data.reviewCount ?? 0),
-        category: data.category ?? "Hotel",
-        amenities: toJsonInput(data.amenities),
-        fullAmenities: toJsonInput(data.fullAmenities),
-        images: toJsonInput(data.images),
-        description: data.description ?? null,
-        tiers: toJsonInput(data.tiers),
-        nearby: toJsonInput(data.nearby),
-        deposit: data.deposit == null ? null : Number(data.deposit),
-        rules: data.rules ?? null,
-        mealsIncluded: data.mealsIncluded ?? null,
-        taxRate: data.taxRate ?? 12.00,
-        ownerId,
-        status: "pending"
-      }
+  async createByOwner(ownerId: string, data: OwnerHotelInput | MultiStepHotelInput) {
+    const normalized = normalizeHotelInput(data);
+
+    return prisma.$transaction(async (tx) => {
+      return tx.hotel.create({
+        data: {
+          name: normalized.name,
+          location: normalized.location,
+          price: Number(normalized.price),
+          rating: Number(normalized.rating ?? 0),
+          reviewCount: Number(normalized.reviewCount ?? 0),
+          category: normalized.category ?? "Hotel",
+          amenities: toJsonInput(normalized.amenities),
+          fullAmenities: toJsonInput(normalized.fullAmenities),
+          images: toJsonInput(normalized.images),
+          description: normalized.description ?? null,
+          tiers: toJsonInput(normalized.tiers),
+          nearby: toJsonInput(normalized.nearby),
+          deposit: normalized.deposit == null ? null : Number(normalized.deposit),
+          rules: normalized.rules ?? null,
+          mealsIncluded: normalized.mealsIncluded ?? null,
+          taxRate: normalized.taxRate ?? 12.00,
+          ownerId,
+          status: "pending"
+        }
+      });
     });
   },
 
@@ -179,20 +259,25 @@ export const hotelService = {
     });
   },
 
-  async updateByOwner(ownerId: string, id: string, data: Partial<OwnerHotelInput>) {
+  async updateByOwner(ownerId: string, id: string, data: Partial<OwnerHotelInput> | MultiStepHotelInput) {
     const existing = await prisma.hotel.findFirst({ where: { id, ownerId } });
     if (!existing) return null;
+
+    let updateData = data as Partial<OwnerHotelInput>;
+    if (isMultiStepHotelInput(data)) {
+      updateData = normalizeHotelInput(data);
+    }
 
     return prisma.hotel.update({
       where: { id },
       data: {
-        ...(data.name != null ? { name: data.name } : {}),
-        ...(data.location != null ? { location: data.location } : {}),
-        ...(data.price != null ? { price: Number(data.price) } : {}),
-        ...(data.rating != null ? { rating: Number(data.rating) } : {}),
-        ...(data.reviewCount != null ? { reviewCount: Number(data.reviewCount) } : {}),
-        ...(data.category != null ? { category: data.category } : {}),
-        ...(data.amenities !== undefined ? { amenities: toJsonInput(data.amenities) } : {}),
+        ...(updateData.name != null ? { name: updateData.name } : {}),
+        ...(updateData.location != null ? { location: updateData.location } : {}),
+        ...(updateData.price != null ? { price: Number(updateData.price) } : {}),
+        ...(updateData.rating != null ? { rating: Number(updateData.rating) } : {}),
+        ...(updateData.reviewCount != null ? { reviewCount: Number(updateData.reviewCount) } : {}),
+        ...(updateData.category != null ? { category: updateData.category } : {}),
+        ...(updateData.amenities !== undefined ? { amenities: toJsonInput(updateData.amenities) } : {}),
         ...(data.fullAmenities !== undefined ? { fullAmenities: toJsonInput(data.fullAmenities) } : {}),
         ...(data.images !== undefined ? { images: toJsonInput(data.images) } : {}),
         ...(data.description !== undefined ? { description: data.description } : {}),

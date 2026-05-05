@@ -149,7 +149,7 @@ export const flightService = {
       );
     }
 
-    const fallback = await prisma.flight.findMany({
+    let fallback = await prisma.flight.findMany({
       where: {
         source: { equals: input.source },
         destination: { equals: input.destination },
@@ -161,6 +161,24 @@ export const flightService = {
       orderBy: [{ price: "asc" }, { departureTime: "asc" }],
       take: 20
     });
+
+    if (fallback.length === 0) {
+      fallback = await prisma.flight.findMany({
+        where: {
+          source: { equals: input.source },
+          destination: { equals: input.destination }
+        },
+        orderBy: [{ price: "asc" }, { departureTime: "asc" }],
+        take: 20
+      });
+
+      if (fallback.length === 0) {
+        fallback = await prisma.flight.findMany({
+          orderBy: [{ price: "asc" }, { departureTime: "asc" }],
+          take: 20
+        });
+      }
+    }
 
     const result = {
       source: externalFlights.length ? "amadeus" : "database-cache",

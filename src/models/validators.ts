@@ -28,6 +28,35 @@ export const hotelSearchSchema = z.object({
   })
 });
 
+export const hotelCreateSchema = z.object({
+  body: z.object({
+    basicInfo: z.object({
+      name: z.string().min(2).max(150),
+      city: z.string().min(2).max(120),
+      state: z.string().min(2).max(120),
+      description: z.string().min(10).max(5000),
+      email: z.string().email(),
+      phone: z.string().min(7).max(30),
+      address: z.string().min(5).max(300),
+      coverImage: z.string().min(1)
+    }),
+    facilities: z.array(z.string().min(1)).default([]),
+    rooms: z.array(
+      z.object({
+        type: z.string().min(1).max(100),
+        price: z.coerce.number().positive(),
+        capacity: z.coerce.number().int().positive(),
+        totalRooms: z.coerce.number().int().positive()
+      })
+    ).min(1),
+    documents: z.object({
+      idProof: z.string().min(1),
+      license: z.string().min(1),
+      videoUrl: z.string().min(1)
+    })
+  })
+});
+
 export const flightSearchSchema = z.object({
   query: z.object({
     source: z.string().length(3),

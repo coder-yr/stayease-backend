@@ -10,6 +10,8 @@ import { paymentRoutes } from "./paymentRoutes.js";
 import { recommendationRoutes } from "./recommendationRoutes.js";
 import { trainRoutes } from "./trainRoutes.js";
 import { walletRoutes } from "./walletRoutes.js";
+import { adminRoutes } from "./adminRoutes.js";
+import { couponRoutes } from "./couponRoutes.js";
 export const apiRouter = Router();
 
 apiRouter.use("/auth", authRoutes);
@@ -23,3 +25,5 @@ apiRouter.use("/bookings", bookingRoutes);
 apiRouter.use("/chat", chatRoutes);
 apiRouter.use("/recommendations", recommendationRoutes);
 apiRouter.use("/wallet", walletRoutes);
+apiRouter.use("/admin", adminRoutes);
+apiRouter.use("/coupons", couponRoutes);

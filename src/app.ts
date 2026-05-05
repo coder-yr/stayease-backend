@@ -36,6 +36,11 @@ export const buildApp = async () => {
           callback(null, true);
           return;
         }
+        // Allow any localhost origin during development (different dev ports)
+        if (env.NODE_ENV !== "production" && origin && origin.startsWith("http://localhost")) {
+          callback(null, true);
+          return;
+        }
         if (allowedOrigins.includes(origin)) {
           callback(null, true);
           return;

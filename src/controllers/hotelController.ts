@@ -14,7 +14,8 @@ export const hotelController = {
       minRating: req.query.minRating ? Number(req.query.minRating) : undefined,
       amenities,
       page: req.query.page ? Number(req.query.page) : 1,
-      limit: req.query.limit ? Number(req.query.limit) : 10
+      limit: req.query.limit ? Number(req.query.limit) : 10,
+      category: req.query.category as string | undefined
     });
 
     res.status(200).json(ok(data, "Hotels fetched"));
@@ -27,8 +28,8 @@ export const hotelController = {
 
   createMine: async (req: Request, res: Response) => {
     const ownerId = req.user!.id;
-    const created = await hotelService.createByOwner(ownerId, req.body);
-    res.status(201).json(ok(created, "Hotel submitted for approval"));
+    const hotel = await hotelService.createByOwner(ownerId, req.body);
+    res.status(201).json({ success: true, hotel });
   },
 
   listMine: async (req: Request, res: Response) => {

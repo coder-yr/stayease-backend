@@ -61,7 +61,8 @@ async function main() {
           images: h.images,
           description: h.description,
           category: h.category,
-          mealsIncluded: h.mealsIncluded
+          mealsIncluded: h.mealsIncluded,
+          status: 'approved'
         }
       })
     )

@@ -9,6 +9,7 @@ export const bookingRoutes = Router();
 
 bookingRoutes.post("/", requireAuth, validate(bookingCreateSchema), asyncHandler(bookingController.create));
 bookingRoutes.get("/mine", requireAuth, asyncHandler(bookingController.listMine));
+bookingRoutes.get("/owner-bookings", requireAuth, requireRole("owner", "admin"), asyncHandler(bookingController.listOwnerBookings));
 bookingRoutes.get("/:id", requireAuth, asyncHandler(bookingController.getById));
 bookingRoutes.patch(
   "/:id/status",
@@ -17,3 +18,4 @@ bookingRoutes.patch(
   validate(bookingStatusSchema),
   asyncHandler(bookingController.updateStatus)
 );
+bookingRoutes.post("/:id/confirm", requireAuth, asyncHandler(bookingController.confirm));
